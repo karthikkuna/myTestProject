@@ -60,7 +60,7 @@ public class FinalTest<FUCK> implements Runnable {
 		}
 		
 		
-		return h.cast("");
+//		return h.cast("");
 	}
 
 	@Override
