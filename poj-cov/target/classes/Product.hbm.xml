@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+ 
+
+<hibernate-mapping>
+<class name="com.test.hibernatetest.poj.cov.util.Product" table="PRODUCTS">
+ 
+<id name="productId" column="pid" >
+<generator class="native" />
+</id>
+<property name="proName1" column="pname1" />
+<property name="proName2" column="pname2" />
+<property name="proName3" column="pname3" />
+<property name="proName4" column="pname4" />
+<property name="proName5" column="pname5" />
+<property name="proName6" column="pname6" />
+<property name="proName7" column="pname7" />
+<property name="proName8" column="pname8" />
+<property name="proName9" column="pname9" />
+<property name="proName10" column="pname10" />
+<property name="proName11" column="pname11" />
+<property name="proName12" column="pname12" />
+<property name="proName13" column="pname13" />
+<property name="proName14" column="pname14" />
+<property name="proName15" column="pname15" />
+<property name="proName16" column="pname16" />
+<property name="proName17" column="pname17" />
+
+
+ 
+</class>
+</hibernate-mapping>
