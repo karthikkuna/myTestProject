@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC 
+ "-//Hibernate/Hibernate Mapping DTD//EN"
+ "http://www.hibernate.org/dtd/hibernate-mapping-3.0.dtd">
+
+
+
+<hibernate-mapping>
+	<class name="com.test.models.Questions" table="QUESTIONS">
+
+		<id name="questionSid" column="QUESTION_SID">
+			<generator class="native" />
+		</id>
+
+		<property name="questionKey" column="QUESTION_KEY" />
+		<property name="questionName" column="QUESTION_NAME" />
+		<property name="createdDate" type="timestamp" column="CREATED_DATE"
+			generated="always" />
+		<!-- <set name="answers" cascade="save-update" table="QUE_ANSWERS"> <key 
+			column="answers_id" /> <many-to-many column="answersSid" class="Answers" 
+			/> </set> -->
+		<set name="answers" cascade="save-update">
+			<key column="QUESTION_SID" />
+			<one-to-many class="com.test.models.Answers" />
+		</set>
+	</class>
+
+
+</hibernate-mapping>

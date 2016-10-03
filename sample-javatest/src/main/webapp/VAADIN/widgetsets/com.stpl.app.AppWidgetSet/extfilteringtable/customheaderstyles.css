@@ -1,0 +1,52 @@
+.v-table-checkbox-radiobutton-container, .v-table-checkbox-container, .v-table-radiobutton-container, .v-table-captionspans-container{
+    display:inline !important;
+}
+
+.v-table-radiobutton-container .v-header-radio{
+    margin: auto;
+}
+td .v-table-eicon-expanded{
+    background: url('expanded.png') no-repeat right center; 
+    width: 15px;
+    height:18px;
+    float: right;
+}
+td .v-table-eicon-collapsed{
+    background: url('collapsed.png') no-repeat right center;
+    width: 15px;
+    height:18px;
+    float: right;
+}
+.valo-theme-extfiltertable .v-table-caption-container{
+    padding: 12px 12px 0px;
+}
+.valo-theme-extfiltertable .v-treetable .v-table-caption-container{
+    min-height: 25px;
+}
+.valo-theme-extfiltertable .v-table-captionspans-container{
+    width: initial !important;
+    min-height: initial !important;
+    float: initial !important;
+    padding:0px !important;
+}
+.reinder-theme-extfiltertable .v-table-header-cell.hasradio .v-table-captionspans-container{
+    vertical-align: top;
+}
+.reinder-theme-extfiltertable .v-table-header-cell.hasradio .v-table-checkbox-container .v-header-checkbox{
+    margin: -7px 0px 0px 0px;
+}
+.reinder-theme-extfiltertable .v-table-header-cell.hasradio .v-table-caption-container img.v-icon{
+    margin: -8px 3px 0 0;
+}
+.reinder-theme-extfiltertable .v-table-header-cell.hascheckbox:not(.hasradio) .v-table-caption-container{
+    padding-top:0px;
+}
+.reinder-theme-extfiltertable .v-table-header-cell.hascheckbox:not(.hasradio) .v-table-caption-container img.v-icon{
+    margin: 0px 3px 0 0;
+}
+.reinder-theme-extfiltertable .v-table-header-cell:not(.hascheckbox):not(.hasradio) .v-table-caption-container img.v-icon{
+    margin-top: -2px;
+}
+.v-table-freeze-spacer {
+  min-height: 1px;
+}
