@@ -1,0 +1,363 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+-->
+
+
+<root>
+    <sql id="nm.discountGenerate">
+		<![CDATA[
+                    DECLARE @START_MONTH VARCHAR(2)=?SM
+                    DECLARE @START_YEAR VARCHAR(4)=?SY
+                    DECLARE @END_MONTH VARCHAR(2)=?EM
+                    DECLARE @END_YEAR VARCHAR(4)=?EY
+                    DECLARE @VAR CHAR(1)='?DSC'
+                    IF OBJECT_ID('TEMPDB..#PROJECTION_INFO') IS NOT NULL 
+                    DROP TABLE #PROJECTION_INFO 
+
+                    CREATE TABLE #PROJECTION_INFO 
+                    ( 
+                         CCP_DETAILS_SID        INT, 
+                         HIERARCHY_NO           VARCHAR(50), 
+                         RELATIONSHIP_LEVEL_SID INT, 
+                         PROJECTION_DETAILS_SID INT 
+                    ) 
+                    INSERT INTO #PROJECTION_INFO
+                                (CCP_DETAILS_SID,
+                                 HIERARCHY_NO,
+                                 RELATIONSHIP_LEVEL_SID,
+                                PROJECTION_DETAILS_SID)
+                    ?CCP
+
+                  
+
+IF OBJECT_ID('TEMPDB..#ST_NM_DISCOUNT_PROJ_MASTER') IS NOT NULL 
+  DROP TABLE #ST_NM_DISCOUNT_PROJ_MASTER 
+
+SELECT PROJECTION_DETAILS_SID, 
+       PRICE_GROUP_TYPE, 
+       RS.RS_NAME, 
+       RS.RS_MODEL_SID, 
+       USER_GROUP, 
+       CHECK_RECORD, 
+       USER_ID, 
+       SESSION_ID 
+INTO   #ST_NM_DISCOUNT_PROJ_MASTER 
+FROM   ST_NM_DISCOUNT_PROJ_MASTER DPM 
+       INNER JOIN RS_MODEL RS 
+               ON RS.RS_MODEL_SID = DPM.RS_MODEL_SID 
+WHERE  EXISTS (SELECT 1 
+               FROM   #PROJECTION_INFO P 
+               WHERE  P.PROJECTION_DETAILS_SID = DPM.PROJECTION_DETAILS_SID) 
+       AND USER_ID = ?UID 
+       AND SESSION_ID = ?SID   
+
+IF OBJECT_ID('TEMPDB..#ACTUAL_SALES') IS NOT NULL 
+  DROP TABLE #ACTUAL_SALES 
+
+SELECT HIERARCHY_NO, 
+       ?GRP 
+       I.YEAR, 
+       ACTUAL_SALES=SUM(ACTUAL_SALES), 
+       ACTUAL_UNITS=SUM(ACTUAL_UNITS) 
+INTO   #ACTUAL_SALES 
+FROM   ST_NM_ACTUAL_SALES S 
+       INNER JOIN #PROJECTION_INFO C 
+               ON C.PROJECTION_DETAILS_SID = S.PROJECTION_DETAILS_SID 
+       INNER JOIN PERIOD I 
+               ON I.PERIOD_SID = S.PERIOD_SID 
+WHERE  SESSION_ID = ?SID 
+       AND USER_ID = ?UID 
+GROUP  BY HIERARCHY_NO, 
+          ?GRP 
+          I.YEAR 
+
+
+
+IF OBJECT_ID('TEMPDB..#ACTUAL_DISCOUNT') IS NOT NULL 
+  DROP TABLE #ACTUAL_DISCOUNT 
+
+SELECT HIERARCHY_NO, 
+       ?GRP 
+       I.YEAR, 
+       DISCOUNT_ACTUALS=SUM(ACTUAL_SALES), 
+       AVG(S.ACTUAL_PROJECTION_RATE)  AS PROJECTION_RATE, 
+       SUM(S.ACTUAL_PROJECTION_SALES) AS ACTUAL_PROJECTION_SALES, 
+       RS_NAME=CASE 
+                 WHEN @VAR = 'R' THEN DM.RS_NAME 
+                 ELSE DM.PRICE_GROUP_TYPE 
+               END 
+INTO   #ACTUAL_DISCOUNT 
+FROM   ST_NM_ACTUAL_DISCOUNT S 
+       INNER JOIN #PROJECTION_INFO C 
+               ON C.PROJECTION_DETAILS_SID = S.PROJECTION_DETAILS_SID 
+       INNER JOIN PERIOD I 
+               ON I.PERIOD_SID = S.PERIOD_SID 
+       INNER JOIN #ST_NM_DISCOUNT_PROJ_MASTER DM 
+               ON C.PROJECTION_DETAILS_SID = DM.PROJECTION_DETAILS_SID 
+                  AND DM.RS_MODEL_SID = DM.RS_MODEL_SID 
+                  AND S.USER_ID = DM.USER_ID 
+                  AND S.SESSION_ID = DM.SESSION_ID 
+WHERE  CASE 
+         WHEN @VAR = 'R' THEN DM.RS_NAME 
+         ELSE DM.PRICE_GROUP_TYPE 
+       END IN ( ?RSN ) 
+GROUP  BY HIERARCHY_NO, 
+          ?GRP 
+          I.YEAR, 
+          CASE 
+            WHEN @VAR = 'R' THEN DM.RS_NAME 
+            ELSE DM.PRICE_GROUP_TYPE 
+          END   
+
+
+IF OBJECT_ID('TEMPDB..#PROJECTION_SALES') IS NOT NULL 
+  DROP TABLE #PROJECTION_SALES 
+
+SELECT HIERARCHY_NO, 
+       ?GRP 
+       I.YEAR, 
+       PROJECTION_SALES=SUM(PROJECTION_SALES), 
+       PROJECTION_UNITS=SUM(PROJECTION_UNITS) 
+INTO   #PROJECTION_SALES 
+FROM   ST_NM_SALES_PROJECTION S 
+       INNER JOIN #PROJECTION_INFO C 
+               ON C.PROJECTION_DETAILS_SID = S.PROJECTION_DETAILS_SID 
+       INNER JOIN PERIOD I 
+               ON I.PERIOD_SID = S.PERIOD_SID 
+WHERE  SESSION_ID = ?SID 
+       AND USER_ID = ?UID 
+GROUP  BY HIERARCHY_NO, 
+          ?GRP 
+          I.YEAR 
+
+IF OBJECT_ID('TEMPDB..#DISCOUNT_PROJECTION') IS NOT NULL 
+  DROP TABLE #DISCOUNT_PROJECTION 
+
+SELECT HIERARCHY_NO, 
+       ?GRP 
+       I.YEAR, 
+       PROJECTED_DISCOUNT=SUM(PROJECTION_SALES), 
+       GROWTH=AVG(GROWTH), 
+       RS_NAME=CASE 
+                 WHEN @VAR = 'R' THEN DM.RS_NAME 
+                 ELSE DM.PRICE_GROUP_TYPE 
+               END 
+INTO   #DISCOUNT_PROJECTION 
+FROM   ST_NM_DISCOUNT_PROJECTION S 
+       INNER JOIN #PROJECTION_INFO C 
+               ON C.PROJECTION_DETAILS_SID = S.PROJECTION_DETAILS_SID 
+       INNER JOIN PERIOD I 
+               ON I.PERIOD_SID = S.PERIOD_SID 
+       INNER JOIN #ST_NM_DISCOUNT_PROJ_MASTER DM 
+               ON C.PROJECTION_DETAILS_SID = DM.PROJECTION_DETAILS_SID 
+                  AND DM.RS_MODEL_SID = DM.RS_MODEL_SID 
+                  AND S.USER_ID = DM.USER_ID 
+                  AND S.SESSION_ID = DM.SESSION_ID 
+WHERE  CASE 
+         WHEN @VAR = 'R' THEN DM.RS_NAME 
+         ELSE DM.PRICE_GROUP_TYPE 
+       END IN ( ?RSN ) 
+GROUP  BY HIERARCHY_NO, 
+          ?GRP 
+          I.YEAR, 
+          CASE 
+            WHEN @VAR = 'R' THEN DM.RS_NAME 
+            ELSE DM.PRICE_GROUP_TYPE 
+          END   
+
+IF OBJECT_ID('TEMPDB..#DISCOUNT_PROJECTION_MASTER') IS NOT NULL 
+  DROP TABLE #DISCOUNT_PROJECTION_MASTER 
+
+SELECT RS_NAME=CASE 
+                 WHEN @VAR = 'R' THEN DM.RS_NAME 
+                 ELSE DM.PRICE_GROUP_TYPE 
+               END, 
+       USER_GROUP=MAX(DM.USER_GROUP), 
+       CHECK_RECORD=MIN(CASE( DM.CHECK_RECORD ) 
+                          WHEN 1 THEN 1 
+                          ELSE 0 
+                        END), 
+       UNCHECK_COUNT=SUM(CASE( DM.CHECK_RECORD ) 
+                           WHEN 1 THEN 0 
+                           ELSE 1 
+                         END), 
+       LEVEL_NO, 
+       P.HIERARCHY_NO, 
+       RELATIONSHIP_LEVEL_VALUES, 
+       LEVEL_NAME, 
+       COUNT(*) AS CCP_COUNT 
+INTO   #DISCOUNT_PROJECTION_MASTER 
+FROM   #PROJECTION_INFO P 
+       INNER JOIN RELATIONSHIP_LEVEL_DEFINITION RLD 
+               ON P.RELATIONSHIP_LEVEL_SID = RLD.RELATIONSHIP_LEVEL_SID 
+       INNER JOIN #ST_NM_DISCOUNT_PROJ_MASTER DM 
+               ON P.PROJECTION_DETAILS_SID = DM.PROJECTION_DETAILS_SID 
+WHERE  CASE 
+         WHEN @VAR = 'R' THEN DM.RS_NAME 
+         ELSE DM.PRICE_GROUP_TYPE 
+       END IN ( ?RSN ) 
+GROUP  BY CASE 
+            WHEN @VAR = 'R' THEN DM.RS_NAME 
+            ELSE DM.PRICE_GROUP_TYPE 
+          END, 
+          LEVEL_NO, 
+          P.HIERARCHY_NO, 
+          RELATIONSHIP_LEVEL_VALUES, 
+          LEVEL_NAME     
+
+SELECT CHECK_RECORD, 
+       LEVEL_NO, 
+       DPM.HIERARCHY_NO, 
+       RELATIONSHIP_LEVEL_VALUES, 
+       LEVEL_NAME, 
+       AD.YEAR, 
+      ?PERIOD_FREQ 
+       DPM.RS_NAME, 
+       COALESCE(DISCOUNT_ACTUALS / NULLIF(ACTUAL_SALES, 0), 0) * 100 AS ACTUAL_RATE, 
+       PROJECTION_RATE, 
+       0                                                             AS AP_TABLE_INDICATOR, 
+       USER_GROUP, 
+       CCP_COUNT, 
+       UNCHECK_COUNT, 
+       DISCOUNT_ACTUALS                                              AS ACTUAL_SALES, 
+       COALESCE(DISCOUNT_ACTUALS / NULLIF(ACTUAL_UNITS, 0), 0)       AS ACTUAL_RPU, 
+       ACTUAL_PROJECTION_SALES                                       AS PROJECTION_SALES, 
+       NULL                                                          AS PROJECTION_RPU, 
+       NULL                                                          AS GROWTH 
+FROM   #DISCOUNT_PROJECTION_MASTER DPM 
+       INNER JOIN #ACTUAL_DISCOUNT AD 
+               ON AD.HIERARCHY_NO = DPM.HIERARCHY_NO 
+                  AND DPM.RS_NAME = AD.RS_NAME 
+       INNER JOIN #ACTUAL_SALES SA 
+               ON SA.HIERARCHY_NO = AD.HIERARCHY_NO 
+                  AND SA.YEAR = AD.YEAR 
+                  AND SA.QUARTER = AD.QUARTER 
+                  ?GROUP_FREQUENCY
+
+UNION ALL 
+SELECT CHECK_RECORD, 
+       LEVEL_NO, 
+       DPM.HIERARCHY_NO, 
+       RELATIONSHIP_LEVEL_VALUES, 
+       LEVEL_NAME, 
+       AD.YEAR, 
+       ?PERIOD_FREQ
+       DPM.RS_NAME, 
+       NULL                                                                AS ACTUAL_RATE, 
+       COALESCE(PROJECTED_DISCOUNT / NULLIF(PROJECTION_SALES, 0), 0) * 100 AS PROJECTION_RATE, 
+       1                                                                   AS AP_TABLE_INDICATOR, 
+       USER_GROUP, 
+       CCP_COUNT, 
+       UNCHECK_COUNT, 
+       NULL                                                                AS ACTUAL_SALES, 
+       NULL                                                                AS ACTUAL_RPU, 
+       PROJECTION_SALES, 
+       COALESCE(PROJECTED_DISCOUNT / NULLIF(PROJECTION_UNITS, 0), 0)       AS PROJECTION_RPU, 
+       GROWTH 
+FROM   #DISCOUNT_PROJECTION_MASTER DPM 
+       INNER JOIN #DISCOUNT_PROJECTION AD 
+               ON AD.HIERARCHY_NO = DPM.HIERARCHY_NO 
+                  AND DPM.RS_NAME = AD.RS_NAME 
+       INNER JOIN #PROJECTION_SALES SA 
+               ON SA.HIERARCHY_NO = AD.HIERARCHY_NO 
+                  AND SA.YEAR = AD.YEAR 
+                  AND SA.QUARTER = AD.QUARTER 
+ORDER  BY RELATIONSHIP_LEVEL_VALUES,
+          RS_NAME,
+          YEAR,
+         ?GRDATA
+          AP_TABLE_INDICATOR 
+		]]>
+    </sql> 
+</root>
+
+DECLARE @CFF_MASTER_SID  INT =558, 
+        @IS_NON_MANDATED BIT=0, 
+        @IS_MANDATED     BIT=0 
+DECLARE @TEMP TABLE 
+  ( 
+     TYPE VARCHAR(100) 
+  ); 
+
+INSERT INTO @TEMP 
+SELECT DISTINCT FORECASTING_TYPE 
+FROM   PROJECTION_MASTER PM 
+WHERE  EXISTS (SELECT 1 
+               FROM   DBO.CFF_MASTER M 
+                      JOIN CFF_DETAILS D 
+                        ON D.CFF_MASTER_SID = M.CFF_MASTER_SID 
+                           AND PM.PROJECTION_MASTER_SID = 
+                               D.PROJECTION_MASTER_SID 
+               WHERE  M.CFF_MASTER_SID = @CFF_MASTER_SID); 
+
+SELECT @IS_NON_MANDATED = 1 
+FROM   @TEMP 
+WHERE  TYPE = 'NON MANDATED'; 
+
+SELECT @IS_MANDATED = 1 
+FROM   @TEMP 
+WHERE  TYPE = 'MANDATED'; 
+
+DECLARE @TEMP_MANDATED_DISCOUNTS TABLE 
+  ( 
+     RS_MODEL_SID INT, 
+     DISCOUNT     VARCHAR(100), 
+     CHECK_RECORD BIT 
+  ) 
+
+INSERT INTO @TEMP_MANDATED_DISCOUNTS 
+VALUES      (0, 
+             'MANDATED', 
+             @IS_MANDATED), 
+            (0, 
+             'SUPPLEMENTAL', 
+             @IS_MANDATED); 
+
+DECLARE @TEMP_NM_DISCOUNTS TABLE 
+  ( 
+     RS_MODEL_SID INT, 
+     DISCOUNT     VARCHAR(500), 
+     CHECK_RECORD BIT 
+  ); 
+
+INSERT INTO @TEMP_NM_DISCOUNTS 
+SELECT DISTINCT NMDP.RS_MODEL_SID, 
+                RS_NAME, 
+                @IS_NON_MANDATED 
+FROM   CFF_DETAILS CFF 
+       JOIN PROJECTION_DETAILS PD 
+         ON CFF.PROJECTION_MASTER_SID = PD.PROJECTION_MASTER_SID 
+            AND CFF.CCP_DETAILS_SID = PD.CCP_DETAILS_SID 
+       JOIN NM_DISCOUNT_PROJ_MASTER NMDP 
+         ON NMDP.PROJECTION_DETAILS_SID = PD.PROJECTION_DETAILS_SID 
+       JOIN RS_CONTRACT RM 
+         ON RM.RS_MODEL_SID = NMDP.RS_MODEL_SID 
+WHERE  CFF.CFF_MASTER_SID = @CFF_MASTER_SID 
+UNION ALL 
+SELECT DISTINCT RM.RS_MODEL_SID, 
+                RM.RS_NAME, 
+                @IS_NON_MANDATED 
+FROM   RS_MODEL RM 
+WHERE  EXISTS(SELECT 1 
+              FROM   CFF_DETAILS CFF 
+                     JOIN PROJECTION_DETAILS PD 
+                       ON CFF.PROJECTION_MASTER_SID = PD.PROJECTION_MASTER_SID 
+                          AND CFF.CCP_DETAILS_SID = PD.CCP_DETAILS_SID 
+                     JOIN NM_PPA_PROJECTION_MASTER NMDP 
+                       ON NMDP.PROJECTION_DETAILS_SID = 
+                          PD.PROJECTION_DETAILS_SID 
+              WHERE  CFF.CFF_MASTER_SID = @CFF_MASTER_SID 
+                     AND RM.RS_MODEL_SID = NMDP.RS_MODEL_SID) 
+
+SELECT RS_MODEL_SID, 
+       DISCOUNT 
+FROM   (SELECT * 
+        FROM   @TEMP_MANDATED_DISCOUNTS 
+        UNION ALL 
+        SELECT * 
+        FROM   @TEMP_NM_DISCOUNTS) A 
+WHERE  CHECK_RECORD = 1 
+ORDER  BY DISCOUNT 

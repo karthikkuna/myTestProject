@@ -1,0 +1,4 @@
+com\test\hibernatetest\poj\cov\util\SessionUtil.class
+com\test\hibernatetest\poj\cov\stax\SaxXml$Job.class
+com\test\hibernatetest\poj\cov\stax\SaxXml.class
+com\test\hibernatetest\poj\cov\stax\FileTransfer.class
